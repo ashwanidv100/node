@@ -77,6 +77,10 @@
       // Start the debugger agent
       NativeModule.require('_debugger').start();
 
+    } else if (process.argv[1] == '--remote_debugging_server') {
+      // Start the debugging server
+      NativeModule.require('internal/inspector/remote_debugging_server');
+
     } else if (process.argv[1] == '--debug-agent') {
       // Start the debugger agent
       NativeModule.require('_debug_agent').start();
@@ -926,7 +930,7 @@
     };
 
     NativeModule.isInternal = function(id) {
-      return id.startsWith('internal/');
+      return id.startsWith('internal/') || id.startsWith('node_modules/');
     };
   }
 

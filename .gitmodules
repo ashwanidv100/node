@@ -1,0 +1,3 @@
+[submodule "deps/v8_inspector"]
+	path = deps/v8_inspector
+	url = https://github.com/repenaxa/v8_inspector

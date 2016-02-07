@@ -112,7 +112,7 @@
         'tools/msvs/genfiles',
         'deps/uv/src/ares',
         '<(SHARED_INTERMEDIATE_DIR)', # for node_natives.h
-        'deps/v8' # include/v8_platform.h
+        'deps/v8', # include/v8_platform.h
       ],
 
       'sources': [
@@ -242,6 +242,26 @@
           'defines': [ 'NODE_ENABLE_VTUNE_PROFILING' ],
           'dependencies': [
             'deps/v8/src/third_party/vtune/v8vtune.gyp:v8_vtune'
+          ],
+        }],
+        [ 'v8_inspector=="true"', {
+          'defines': [
+            'HAVE_INSPECTOR=1',
+            'V8_INSPECTOR_USE_STL=1',
+          ],
+          'sources': [
+            'src/inspector_agent.cc',
+            'src/inspector_socket.cc',
+            'src/inspector_socket.h',
+            'src/inspector-agent.h',
+          ],
+          'dependencies': [
+            'deps/v8_inspector/v8_inspector.gyp:v8_inspector',
+          ],
+          'include_dirs': [
+            'deps/v8_inspector',
+            'deps/v8_inspector/deps/wtf', # temporary
+            '<(SHARED_INTERMEDIATE_DIR)/blink', # for inspector
           ],
         }],
         [ 'node_use_openssl=="true"', {
@@ -677,7 +697,10 @@
       'target_name': 'cctest',
       'type': 'executable',
       'dependencies': [
+        'deps/openssl/openssl.gyp:openssl',
+        'deps/http_parser/http_parser.gyp:http_parser',
         'deps/gtest/gtest.gyp:gtest',
+        'deps/uv/uv.gyp:libuv',
         'deps/v8/tools/gyp/v8.gyp:v8',
         'deps/v8/tools/gyp/v8.gyp:v8_libplatform'
       ],
@@ -695,7 +718,9 @@
         'GTEST_DONT_DEFINE_ASSERT_NE=1',
       ],
       'sources': [
+        'src/inspector_socket.cc',
         'test/cctest/util.cc',
+        'test/cctest/inspector_socket.cc',
       ],
     }
   ], # end targets

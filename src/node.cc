@@ -144,6 +144,9 @@ static bool track_heap_objects = false;
 static const char* eval_string = nullptr;
 static unsigned int preload_module_count = 0;
 static const char** preload_modules = nullptr;
+#if HAVE_INSPECTOR
+static bool use_inspector = false;
+#endif
 static bool use_debug_agent = false;
 static bool debug_wait_connect = false;
 static int debug_port = 5858;
@@ -3256,6 +3259,17 @@ static bool ParseDebugOpt(const char* arg) {
     port = arg + sizeof("--debug-brk=") - 1;
   } else if (!strncmp(arg, "--debug-port=", sizeof("--debug-port=") - 1)) {
     port = arg + sizeof("--debug-port=") - 1;
+#if HAVE_INSPECTOR
+  // Specifying both --inspect and --debug means debugging is on, using Chromium
+  // inspector.
+  } else if (!strncmp(arg, "--inspect", sizeof("--inspect") - 1)) {
+    use_debug_agent = true;
+    use_inspector = true;
+  } else if (!strncmp(arg, "--inspect=", sizeof("--inspect=") - 1)) {
+    use_debug_agent = true;
+    use_inspector = true;
+    port = arg + sizeof("--inspect=") - 1;
+#endif
   } else {
     return false;
   }
@@ -3497,10 +3511,19 @@ static void DispatchMessagesDebugAgentCallback(Environment* env) {
 
 static void StartDebug(Environment* env, bool wait) {
   CHECK(!debugger_running);
+#if HAVE_INSPECTOR
+  if (use_inspector)
+    debugger_running = env->inspector_agent()->Start(default_platform,
+        debug_port, wait);
+  else {
+#endif
+    env->debugger_agent()->set_dispatch_handler(
+          DispatchMessagesDebugAgentCallback);
+    debugger_running = env->debugger_agent()->Start(debug_port, wait);
+#if HAVE_INSPECTOR
+  }
+#endif
 
-  env->debugger_agent()->set_dispatch_handler(
-        DispatchMessagesDebugAgentCallback);
-  debugger_running = env->debugger_agent()->Start(debug_port, wait);
   if (debugger_running == false) {
     fprintf(stderr, "Starting debugger on port %d failed\n", debug_port);
     fflush(stderr);
@@ -3512,6 +3535,11 @@ static void StartDebug(Environment* env, bool wait) {
 // Called from the main thread.
 static void EnableDebug(Environment* env) {
   CHECK(debugger_running);
+#if HAVE_INSPECTOR
+  if (use_inspector) {
+    return;
+  }
+#endif
 
   // Send message to enable debug in workers
   HandleScope handle_scope(env->isolate());
@@ -3775,7 +3803,15 @@ static void DebugPause(const FunctionCallbackInfo<Value>& args) {
 static void DebugEnd(const FunctionCallbackInfo<Value>& args) {
   if (debugger_running) {
     Environment* env = Environment::GetCurrent(args);
-    env->debugger_agent()->Stop();
+#if HAVE_INSPECTOR
+    if (use_inspector) {
+      env->inspector_agent()->Stop();
+    } else {
+#endif
+      env->debugger_agent()->Stop();
+#if HAVE_INSPECTOR
+    }
+#endif
     debugger_running = false;
   }
 }
