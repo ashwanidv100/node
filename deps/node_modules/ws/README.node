@@ -1,0 +1,9 @@
+Adapted from npm.im/ws
+
+Version: 1.0.1
+
+Changed:
+  - Remove Files: package.json
+  - Rename Files: BufferUtil.fallback.js -> BufferUtil.js, Validation.fallback.js -> Validation.js,
+        Sender.hixie.js -> Sender-hixie.js, Receiver.hixie.js -> Receiver-hixie.js
+  - Edit require paths of all files to find internal modules

@@ -1,0 +1,6 @@
+Adapted from npm.im/ultron
+
+Version: 1.0.2
+
+Changed:
+  - Remove Files: package.json

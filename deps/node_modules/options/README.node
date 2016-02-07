@@ -1,0 +1,6 @@
+Adapted from npm.im/options
+
+Version: 0.0.6
+
+Changed:
+  - Remove Files: package.json
