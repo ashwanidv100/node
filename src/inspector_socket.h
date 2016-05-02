@@ -39,6 +39,7 @@ struct inspector_socket_s {
   uv_tcp_t client;
   bool ws_mode;
   bool shutting_down;
+  bool connection_eof;
 };
 
 typedef struct inspector_socket_s inspector_socket_t;
@@ -50,7 +51,7 @@ void inspector_close(struct inspector_socket_s* inspector,
                      inspector_cb callback);
 
 // Callbacks will receive handles that has inspector in data field...
-void inspector_read_start(struct inspector_socket_s* inspector, uv_alloc_cb,
+int inspector_read_start(struct inspector_socket_s* inspector, uv_alloc_cb,
                           uv_read_cb);
 void inspector_read_stop(struct inspector_socket_s* inspector);
 void inspector_write(struct inspector_socket_s* inspector,

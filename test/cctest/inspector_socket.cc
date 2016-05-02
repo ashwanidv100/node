@@ -222,9 +222,10 @@ void handle_closed(uv_handle_t* handle) {
 
 static void really_close(uv_tcp_t* socket) {
   waiting_to_close = true;
-  uv_close((uv_handle_t*) socket, handle_closed);
-  SPIN_WHILE(waiting_to_close);
-  uv_unref((uv_handle_t*) socket);
+  if (!uv_is_closing((uv_handle_t*) socket)) {
+    uv_close((uv_handle_t*) socket, handle_closed);
+    SPIN_WHILE(waiting_to_close);
+  }
 }
 
 // Called when the test leaves inspector socket in active state
@@ -668,6 +669,10 @@ TEST_F(InspectorSocketTest, GetThenHandshake) {
   manual_inspector_socket_cleanup();
 }
 
+static void WriteBeforeHandshake_close_cb(uv_handle_t* handle) {
+  *((bool*) handle->data) = true;
+}
+
 TEST_F(InspectorSocketTest, WriteBeforeHandshake) {
   const char MESSAGE1[] = "Message 1";
   const char MESSAGE2[] = "Message 2";
@@ -676,11 +681,52 @@ TEST_F(InspectorSocketTest, WriteBeforeHandshake) {
   inspector_write(&inspector, MESSAGE1, sizeof(MESSAGE1) - 1);
   inspector_write(&inspector, MESSAGE2, sizeof(MESSAGE2) - 1);
   expect_on_client(EXPECTED, sizeof(EXPECTED) - 1);
+  bool flag = false;
+  client_socket.data = &flag;
+  uv_close((uv_handle_t*) &client_socket, WriteBeforeHandshake_close_cb);
+  SPIN_WHILE(!flag);
+}
+
+static void CleanupSocketAfterEOF_close_cb(inspector_socket_t* inspector,
+                                           int status) {
+  *((bool*) inspector->data) = true;
+}
+
+static void CleanupSocketAfterEOF_read_cb(uv_stream_t* stream, ssize_t nread,
+                                          const uv_buf_t* buf) {
+  EXPECT_EQ(UV_EOF, nread);
+  inspector_socket_t* insp = (inspector_socket_t*) stream->data;
+  inspector_close(insp, CleanupSocketAfterEOF_close_cb);
+}
+
+TEST_F(InspectorSocketTest, CleanupSocketAfterEOF) {
+  do_write((char*) HANDSHAKE_REQ, sizeof(HANDSHAKE_REQ) - 1);
+  expect_handshake();
+
+  inspector_read_start(&inspector, buffer_alloc_cb,
+                       CleanupSocketAfterEOF_read_cb);
+
+  for (int i = 0; i < MAX_LOOP_ITERATIONS; ++i) {
+    uv_run(&loop, UV_RUN_NOWAIT);
+  }
+
+  uv_close((uv_handle_t*) &client_socket, nullptr);
+  bool flag = false;
+  inspector.data = &flag;
+  SPIN_WHILE(!flag);
+}
+
+TEST_F(InspectorSocketTest, EOFBeforeHandshake) {
+  const char MESSAGE[] = "We'll send EOF afterwards";
+  inspector_write(&inspector, MESSAGE, sizeof(MESSAGE) - 1);
+  expect_on_client(MESSAGE, sizeof(MESSAGE) - 1);
+  uv_close((uv_handle_t*) &client_socket, nullptr);
+  SPIN_WHILE(last_event != kInspectorHandshakeFailed);
 }
 
 int main(int argc, char **argv) {
   ::testing::InitGoogleTest(&argc, argv);
   // ::testing::GTEST_FLAG(filter) =
-  //     "InspectorSocketTest.ExtraTextBeforeRequest";
+  //     "InspectorSocketTest.CleanupSocketAfterEOF";
   return RUN_ALL_TESTS();
 }

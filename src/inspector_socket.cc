@@ -378,8 +378,8 @@ static void websockets_data_cb(uv_stream_t* stream, ssize_t nread,
   inspector_socket_t* inspector =
       (inspector_socket_t*) stream->data;
   if (nread < 0 || nread == UV_EOF) {
+    inspector->connection_eof = true;
     if (!inspector->shutting_down && inspector->ws_state->read_cb) {
-      close_connection(inspector);
       inspector->ws_state->read_cb(stream, nread, nullptr);
     }
   } else {
@@ -412,17 +412,19 @@ static void websockets_data_cb(uv_stream_t* stream, ssize_t nread,
   }
 }
 
-void inspector_read_start(inspector_socket_t* inspector,
+int inspector_read_start(inspector_socket_t* inspector,
                           uv_alloc_cb alloc_cb, uv_read_cb read_cb) {
   ASSERT(inspector->ws_mode);
   ASSERT(!inspector->shutting_down || read_cb == nullptr);
   inspector->ws_state->sent_close = false;
   inspector->ws_state->alloc_cb = alloc_cb;
   inspector->ws_state->read_cb = read_cb;
-  if (uv_read_start((uv_stream_t*) &inspector->client, prepare_buffer,
-                    websockets_data_cb) < 0) {
+  int err = uv_read_start((uv_stream_t*) &inspector->client, prepare_buffer,
+                    websockets_data_cb);
+  if (err < 0) {
     close_connection(inspector);
   }
+  return err;
 }
 
 void inspector_read_stop(inspector_socket_t* inspector) {
@@ -662,11 +664,7 @@ static void data_received_cb(uv_stream_s* client, ssize_t nread,
 #endif
   inspector_socket_t* inspector =
       (inspector_socket_t*) (client->data);
-  if (nread == UV_EOF || nread < 0) {
-    close_connection(inspector);
-  } else {
-    handshake_data_cb(inspector, nread, buf);
-  }
+  handshake_data_cb(inspector, nread, buf);
 }
 
 static void init_handshake(inspector_socket_t* inspector) {
@@ -757,7 +755,7 @@ void inspector_close(inspector_socket_t* inspector,
   ASSERT(!inspector->shutting_down);
   inspector->shutting_down = true;
   inspector->ws_state->close_cb = callback;
-  if (inspector->ws_state->sent_close) {
+  if (inspector->connection_eof || inspector->ws_state->sent_close) {
     close_connection(inspector);
   } else {
     inspector_read_stop(inspector);

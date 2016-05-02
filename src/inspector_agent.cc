@@ -238,7 +238,7 @@ void Agent::OnRemoteData(uv_stream_t* stream, ssize_t read, const uv_buf_t* b) {
     if (agent->client_socket_ == socket) {
       agent->client_socket_ = nullptr;
     }
-    free(socket);
+    DisconnectAndDispose(socket);
   }
 }
 
