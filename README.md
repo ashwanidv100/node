@@ -7,9 +7,9 @@ v8 inspector via the remote debugging protocol.
 
 ## Build & run
 
-Clone v8_inspector branch. This is a slightly modified version of Node.js that uses v8_inspector to support remote debugging with Chrome DevTools:
+Clone native_devtools_protocol branch. This is a slightly modified version of Node.js that uses v8_inspector to support remote debugging with Chrome DevTools:
 ```text
-$ git clone -b v8_inspector https://github.com/repenaxa/node/
+$ git clone -b native_devtools_protocol https://github.com/repenaxa/node/
 $ cd node
 ```
 
