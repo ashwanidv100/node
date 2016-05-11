@@ -57,7 +57,8 @@ class Agent {
 
   void PostMessages();
 
-  inspector_socket_t* client_socket() {  return client_socket_; }
+  bool connected() {  return connected_; }
+
  protected:
   inline node::Environment* parent_env() {  return parent_env_; }
   void InitAdaptor(Environment* env);
@@ -74,6 +75,7 @@ class Agent {
 
   int port_;
   bool wait_;
+  bool connected_;
 
   uv_thread_t thread_;
   node::Environment* parent_env_;
@@ -101,7 +103,9 @@ class Agent {
   void OnInspectorConnection(inspector_socket_t* socket);
   void write(const blink::protocol::String16& message);
 
+  friend class AsyncWriteRequest;
   friend class ChannelImpl;
+  friend class SetConnectedTask;
 };
 
 }  // namespace inspector

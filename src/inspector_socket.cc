@@ -319,6 +319,7 @@ static void on_close_frame_written(uv_write_t* write, int status) {
 static void close_frame_received(inspector_socket_t* inspector) {
   inspector->ws_state->received_close = true;
   if (!inspector->ws_state->close_sent) {
+    invoke_read_callback(inspector, 0, 0);
     write_to_client(inspector, CLOSE_FRAME, sizeof(CLOSE_FRAME),
                     on_close_frame_written);
   } else {

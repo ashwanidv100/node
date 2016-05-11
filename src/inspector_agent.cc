@@ -84,7 +84,7 @@ class AsyncWriteRequest {
   AsyncWriteRequest(Agent* agent, const String16& message) :
                     agent_(agent), message_(message) {}
   void perform() {
-    inspector_socket_t* socket = agent_->client_socket();
+    inspector_socket_t* socket = agent_->client_socket_;
     if (socket) {
       inspector_write(socket, message_.utf8().c_str(), message_.length());
     }
@@ -92,6 +92,21 @@ class AsyncWriteRequest {
  private:
   Agent* const agent_;
   const String16 message_;
+};
+
+class SetConnectedTask : public v8::Task {
+ public:
+  SetConnectedTask(Agent* agent, bool connected)
+     : agent_(agent),
+       connected_(connected) {}
+
+  void Run() override {
+    agent_->connected_ = connected_;
+  }
+
+ private:
+  Agent* agent_;
+  bool connected_;
 };
 
 static void DisposeAsyncCb(uv_handle_t* handle) {
@@ -171,6 +186,7 @@ static void SendTargentsListResponse(inspector_socket_t* socket) {
 
 Agent::Agent(Environment* env) : port_(5858),
                                  wait_(false),
+                                 connected_(false),
                                  parent_env_(env),
                                  client_socket_(nullptr),
                                  platform_(nullptr) {
@@ -281,6 +297,10 @@ void Agent::OnRemoteData(uv_stream_t* stream, ssize_t read, const uv_buf_t* b) {
       agent->client_socket_ = nullptr;
     }
     DisconnectAndDispose(socket);
+  } else {
+    // EOF
+    agent->platform_->CallOnForegroundThread(agent->parent_env()->isolate(),
+        new SetConnectedTask(agent, false));
   }
 }
 
@@ -306,6 +326,8 @@ void Agent::OnInspectorConnection(inspector_socket_t* socket) {
   client_socket_ = socket;
   inspector_read_start(socket, OnBufferAlloc, OnRemoteData);
   uv_sem_post(&start_sem_);
+  platform_->CallOnForegroundThread(parent_env()->isolate(),
+      new SetConnectedTask(this, true));
 }
 
 bool Agent::RespondToGet(inspector_socket_t* socket, const char* path) {
