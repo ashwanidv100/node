@@ -399,9 +399,11 @@ void Agent::WorkerRun() {
                     OnSocketConnection);
   }
   if (err == 0) {
-    printf("Navigate to chrome-devtools://devtools/remote/serve_file/"
-           "@4604d24a75168768584760ba56d175507941852f/inspector.html?"
-           "&experiments=true&ws=localhost:%d/node\n", port_);
+    fprintf(stderr, "Debugger listening on port %d\n\n"
+        "To start debugging, open URL in Chrome:\n"
+        "chrome-devtools://devtools/remote/serve_file/"
+        "@4604d24a75168768584760ba56d175507941852f/inspector.html?"
+        "experiments=true&v8only=true&ws=localhost:%d/node\n\n", port_, port_);
   } else {
     fprintf(stderr, "Unable to open devtools socket: %s\n", uv_strerror(err));
     assert(false);
